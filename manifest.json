@@ -1,0 +1,44 @@
+{
+  "manifest_version": 3,
+  "name": "Zoom/Teams/Meet Tab Closer",
+  "version": "1.0",
+  "description": "Automatically closes Zoom, Teams, and Google Meet tabs when they're no longer needed",
+  "permissions": [
+    "tabs",
+    "storage",
+    "activeTab",
+    "history"
+  ],
+  "host_permissions": [
+    "*://*.zoom.us/*",
+    "*://teams.microsoft.com/*",
+    "*://meet.google.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*.zoom.us/*",
+        "*://teams.microsoft.com/*",
+        "*://meet.google.com/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

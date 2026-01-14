@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meeting Tab Closer</title>
+    <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <img src="icons/icon48.png" alt="Extension Icon" class="icon">
+            <h1>Meeting Tab Closer</h1>
+        </div>
+
+        <div class="stats">
+            <div class="counter-section">
+                <div class="counter-label">Tabs Closed</div>
+                <div class="counter-value" id="closedCount">-</div>
+            </div>
+        </div>
+
+        <div class="config-section">
+            <h2>Timer Configuration</h2>
+            <div class="config-item">
+                <label for="zoomTimer">
+                    <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjE2IiBoZWlnaHQ9IjE2IiByeD0iMyIgZmlsbD0iIzJENjREQSIvPgo8cGF0aCBkPSJNMy41IDQuNUgxMC41TDMuNSAxMS41SDEwLjUiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS13aWR0aD0iMS41IiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz4KPHBhdGggZD0iTTEwLjUgNy41TDEyLjUgNlY5LjVMMTAuNSA4LjVWNy41WiIgZmlsbD0id2hpdGUiLz4KPC9zdmc+" alt="Zoom">
+                    <span>Zoom</span>
+                </label>
+                <div class="timer-input">
+                    <input type="number" id="zoomTimer" min="0" max="3600" value="600">
+                    <span class="unit">seconds</span>
+                </div>
+            </div>
+
+            <div class="config-item">
+                <label for="teamsTimer">
+                    <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjE2IiBoZWlnaHQ9IjE2IiByeD0iMyIgZmlsbD0iIzUwNTlDOSIvPgo8cmVjdCB4PSI0IiB5PSI0IiB3aWR0aD0iOCIgaGVpZ2h0PSI4IiByeD0iMSIgZmlsbD0id2hpdGUiLz4KPGNpcmNsZSBjeD0iMTEuNSIgY3k9IjExLjUiIHI9IjIiIGZpbGw9IndoaXRlIi8+CjxwYXRoIGQ9Ik02IDYuNUg2LjVWOS41SDYiIHN0cm9rZT0iIzUwNTlDOSIgc3Ryb2tlLXdpZHRoPSIxLjUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPgo8cGF0aCBkPSJNNSA4SDEwIiBzdHJva2U9IiM1MDU5QzkiIHN0cm9rZS13aWR0aD0iMSIvPgo8L3N2Zz4=" alt="Teams">
+                    <span>Teams</span>
+                </label>
+                <div class="timer-input">
+                    <input type="number" id="teamsTimer" min="0" max="3600" value="600">
+                    <span class="unit">seconds</span>
+                </div>
+            </div>
+
+            <div class="config-item">
+                <label for="meetTimer">
+                    <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjE2IiBoZWlnaHQ9IjE2IiByeD0iMyIgZmlsbD0iIzAwODMyRCIvPgo8cGF0aCBkPSJNNCA2QzQgNS40NDc3MiA0LjQ0NzcyIDUgNSA1SDE0QzE0LjU1MjMgNSAxNSA1LjQ0NzcyIDE1IDZWMTBDMTUgMTAuNTUyMyAxNC41NTIzIDExIDE0IDExSDVDNC40NDc3MiAxMSA0IDEwLjU1MjMgNCAxMFY2WiIgZmlsbD0id2hpdGUiLz4KPHBhdGggZD0iTTIgN0MyIDYuNDQ3NzIgMi40NDc3MiA2IDMgNkM0IDcgNCA5IDMgMTBDMi40NDc3MiAxMCAyIDkuNTUyMjggMiA5VjdaIiBmaWxsPSIjRkZCQTAwIi8+CjxjaXJjbGUgY3g9IjkuNSIgY3k9IjgiIHI9IjEuNSIgZmlsbD0iIzAwODMyRCIvPgo8L3N2Zz4=" alt="Meet">
+                    <span>Meet</span>
+                </label>
+                <div class="timer-input">
+                    <input type="number" id="meetTimer" min="0" max="3600" value="0">
+                    <span class="unit">seconds</span>
+                </div>
+            </div>
+
+            <div class="config-note">
+                <p><strong>Note:</strong> Meet closes when returning to home page after meeting. Set to 0 for immediate closure, or higher for delayed closure.</p>
+            </div>
+
+            <button id="saveConfigButton" class="save-btn">Save Settings</button>
+        </div>
+
+        <div class="actions">
+            <button id="resetButton" class="reset-btn">Reset Counter</button>
+        </div>
+
+        <div class="status" id="status">
+            <div class="status-indicator active"></div>
+            <span>Extension Active</span>
+        </div>
+    </div>
+
+    <script src="popup.js"></script>
+</body>
+</html>
