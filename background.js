@@ -78,7 +78,7 @@ class TabCloser {
               // to see if this is likely a post-meeting tab
               if (tabType === 'meet' && this.isGoogleMeetHomePage(tab.url)) {
                 console.log(`Existing Meet tab ${tab.id} is on home page - checking recent history`);
-                this.checkRecentMeetingHistory(tab.id, tabInfo);
+                await this.checkRecentMeetingHistory(tab.id, tabInfo);
               }
             }
           }
@@ -219,29 +219,29 @@ class TabCloser {
     return false;
   }
 
-  // Check recent browser history (last 5 minutes) for meeting URLs
+  // Check recent browser history (last 15 minutes) for meeting URLs
   // Used for scanned tabs where we don't have in-memory state
   async checkRecentMeetingHistory(tabId, tabInfo) {
     console.log(`=== CHECKING RECENT MEETING HISTORY for tab ${tabId} ===`);
 
     try {
-      // Only check last 5 minutes (not 1 hour like before)
-      // This reduces false positives from unrelated earlier meetings
-      const fiveMinutesAgo = Date.now() - (5 * 60 * 1000);
+      // Check last 15 minutes to catch meetings that just ended
+      // Extension may have just been installed/updated after a meeting
+      const fifteenMinutesAgo = Date.now() - (15 * 60 * 1000);
 
       const historyItems = await chrome.history.search({
         text: 'meet.google.com/',
-        startTime: fiveMinutesAgo,
-        maxResults: 50
+        startTime: fifteenMinutesAgo,
+        maxResults: 100
       });
 
-      console.log(`Tab ${tabId} found ${historyItems.length} Meet URLs in last 5 minutes`);
+      console.log(`Tab ${tabId} found ${historyItems.length} Meet URLs in last 15 minutes`);
 
       // Look for meeting room URLs (not home pages)
       const meetingUrls = historyItems.filter(item => {
         const hasMeetingCode = /meet\.google\.com\/[a-z]{3}-[a-z]{4}-[a-z]{3}/.test(item.url);
         if (hasMeetingCode) {
-          console.log(`Tab ${tabId} recent meeting URL: ${item.url}`);
+          console.log(`Tab ${tabId} recent meeting URL: ${item.url} at ${new Date(item.lastVisitTime).toISOString()}`);
         }
         return hasMeetingCode;
       });
@@ -261,7 +261,23 @@ class TabCloser {
           console.log(`Tab ${tabId} TIMER STARTED based on recent history`);
         }
       } else {
-        console.log(`Tab ${tabId} NO recent meeting history - treating as directly opened tab`);
+        console.log(`Tab ${tabId} NO recent meeting history found`);
+
+        // If meetTimer is 0, assume this is a post-meeting tab and close after brief grace period
+        // This handles cases where:
+        // 1. Extension was just installed/reloaded
+        // 2. History is unavailable
+        // 3. Meeting was >15 minutes ago
+        if (this.config.meetTimer === 0) {
+          console.log(`Tab ${tabId} meetTimer=0, assuming post-meeting tab - will close after 30s grace period`);
+          tabInfo.wasInMeeting = true;
+          tabInfo.homePageReturnTime = Date.now();
+          // Set a 30-second grace period timer instead of immediate closure
+          // This prevents closing tabs that users intentionally opened
+          tabInfo.gracePeriodTimer = 30; // seconds
+        } else {
+          console.log(`Tab ${tabId} NO recent meeting history - treating as directly opened tab (won't close)`);
+        }
       }
     } catch (error) {
       console.error(`Tab ${tabId} Error checking recent history:`, error);
@@ -361,15 +377,22 @@ class TabCloser {
         // Use configured teams timer (convert seconds to milliseconds)
         return timeElapsed >= (this.config.teamsTimer * 1000);
       case 'meet':
-        // For Meet, only close after timer if user has returned to home page and timer > 0
-        // (meetTimer = 0 is handled immediately in handleTabUpdate, not here)
-        if (tabInfo.homePageReturnTime && this.config.meetTimer > 0) {
+        // For Meet, only close after timer if user has returned to home page
+        if (tabInfo.homePageReturnTime) {
           const timeSinceHomeReturn = Date.now() - tabInfo.homePageReturnTime;
-          const shouldClose = timeSinceHomeReturn >= (this.config.meetTimer * 1000);
-          console.log(`Meet tab should close check: timeSinceReturn=${Math.floor(timeSinceHomeReturn/1000)}s, threshold=${this.config.meetTimer}s, shouldClose=${shouldClose}`);
-          return shouldClose;
+
+          // If there's a grace period timer (e.g., for tabs without clear meeting history)
+          const effectiveTimer = tabInfo.gracePeriodTimer || this.config.meetTimer;
+
+          // meetTimer = 0 with grace period means close after grace period
+          // meetTimer = 0 without grace period is handled immediately in handleTabUpdate
+          if (effectiveTimer > 0) {
+            const shouldClose = timeSinceHomeReturn >= (effectiveTimer * 1000);
+            console.log(`Meet tab should close check: timeSinceReturn=${Math.floor(timeSinceHomeReturn/1000)}s, effectiveTimer=${effectiveTimer}s (grace=${tabInfo.gracePeriodTimer}, config=${this.config.meetTimer}), shouldClose=${shouldClose}`);
+            return shouldClose;
+          }
         }
-        // Don't close via periodic check if meetTimer is 0 (handled immediately) or if timer hasn't started
+        // Don't close via periodic check if meetTimer is 0 without grace period (handled immediately) or if timer hasn't started
         return false;
       default:
         return false;
