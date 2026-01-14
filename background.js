@@ -74,11 +74,20 @@ class TabCloser {
               this.monitoredTabs.set(tab.id, tabInfo);
               console.log(`Added existing tab ${tab.id} to monitoring (wasInMeeting: ${isInMeetingRoom})`);
 
-              // For existing Meet tabs on home page, check RECENT browser history
-              // to see if this is likely a post-meeting tab
+              // For existing Meet tabs on home page, check if likely a post-meeting tab
               if (tabType === 'meet' && this.isGoogleMeetHomePage(tab.url)) {
-                console.log(`Existing Meet tab ${tab.id} is on home page - checking recent history`);
-                await this.checkRecentMeetingHistory(tab.id, tabInfo);
+                console.log(`Existing Meet tab ${tab.id} is on home page`);
+
+                // Check for authuser query param (indicates redirect from meeting)
+                const hasAuthUser = tab.url.includes('?authuser=') || tab.url.includes('&authuser=');
+
+                if (hasAuthUser) {
+                  console.log(`Tab ${tab.id} has authuser param - likely post-meeting redirect`);
+                  // Check history with long window since authuser indicates this came from a meeting
+                  await this.checkRecentMeetingHistory(tab.id, tabInfo);
+                } else {
+                  console.log(`Tab ${tab.id} has NO authuser param - likely user-opened, won't close`);
+                }
               }
             }
           }
@@ -219,23 +228,23 @@ class TabCloser {
     return false;
   }
 
-  // Check recent browser history (last 15 minutes) for meeting URLs
+  // Check recent browser history (last 24 hours) for meeting URLs
   // Used for scanned tabs where we don't have in-memory state
   async checkRecentMeetingHistory(tabId, tabInfo) {
     console.log(`=== CHECKING RECENT MEETING HISTORY for tab ${tabId} ===`);
 
     try {
-      // Check last 15 minutes to catch meetings that just ended
-      // Extension may have just been installed/updated after a meeting
-      const fifteenMinutesAgo = Date.now() - (15 * 60 * 1000);
+      // Check last 24 hours - safe because we only call this when authuser param present
+      // (which indicates post-meeting redirect, not user-opened tab)
+      const twentyFourHoursAgo = Date.now() - (24 * 60 * 60 * 1000);
 
       const historyItems = await chrome.history.search({
         text: 'meet.google.com/',
-        startTime: fifteenMinutesAgo,
-        maxResults: 100
+        startTime: twentyFourHoursAgo,
+        maxResults: 200
       });
 
-      console.log(`Tab ${tabId} found ${historyItems.length} Meet URLs in last 15 minutes`);
+      console.log(`Tab ${tabId} found ${historyItems.length} Meet URLs in last 24 hours`);
 
       // Look for meeting room URLs (not home pages)
       const meetingUrls = historyItems.filter(item => {
@@ -263,20 +272,16 @@ class TabCloser {
       } else {
         console.log(`Tab ${tabId} NO recent meeting history found`);
 
-        // If meetTimer is 0, assume this is a post-meeting tab and close after brief grace period
-        // This handles cases where:
-        // 1. Extension was just installed/reloaded
-        // 2. History is unavailable
-        // 3. Meeting was >15 minutes ago
+        // If meetTimer is 0, assume this is a post-meeting tab since authuser param was present
+        // Close immediately since the authuser param is strong signal this came from a meeting
         if (this.config.meetTimer === 0) {
-          console.log(`Tab ${tabId} meetTimer=0, assuming post-meeting tab - will close after 30s grace period`);
+          console.log(`Tab ${tabId} meetTimer=0 with authuser param - immediate closure despite no history`);
+          this.closeTab(tabId, 'meet-authuser-param-immediate-close');
+        } else {
+          // Start timer even without history confirmation, since authuser param is strong signal
           tabInfo.wasInMeeting = true;
           tabInfo.homePageReturnTime = Date.now();
-          // Set a 30-second grace period timer instead of immediate closure
-          // This prevents closing tabs that users intentionally opened
-          tabInfo.gracePeriodTimer = 30; // seconds
-        } else {
-          console.log(`Tab ${tabId} NO recent meeting history - treating as directly opened tab (won't close)`);
+          console.log(`Tab ${tabId} TIMER STARTED based on authuser param (no history found)`);
         }
       }
     } catch (error) {
@@ -378,21 +383,13 @@ class TabCloser {
         return timeElapsed >= (this.config.teamsTimer * 1000);
       case 'meet':
         // For Meet, only close after timer if user has returned to home page
-        if (tabInfo.homePageReturnTime) {
+        if (tabInfo.homePageReturnTime && this.config.meetTimer > 0) {
           const timeSinceHomeReturn = Date.now() - tabInfo.homePageReturnTime;
-
-          // If there's a grace period timer (e.g., for tabs without clear meeting history)
-          const effectiveTimer = tabInfo.gracePeriodTimer || this.config.meetTimer;
-
-          // meetTimer = 0 with grace period means close after grace period
-          // meetTimer = 0 without grace period is handled immediately in handleTabUpdate
-          if (effectiveTimer > 0) {
-            const shouldClose = timeSinceHomeReturn >= (effectiveTimer * 1000);
-            console.log(`Meet tab should close check: timeSinceReturn=${Math.floor(timeSinceHomeReturn/1000)}s, effectiveTimer=${effectiveTimer}s (grace=${tabInfo.gracePeriodTimer}, config=${this.config.meetTimer}), shouldClose=${shouldClose}`);
-            return shouldClose;
-          }
+          const shouldClose = timeSinceHomeReturn >= (this.config.meetTimer * 1000);
+          console.log(`Meet tab should close check: timeSinceReturn=${Math.floor(timeSinceHomeReturn/1000)}s, meetTimer=${this.config.meetTimer}s, shouldClose=${shouldClose}`);
+          return shouldClose;
         }
-        // Don't close via periodic check if meetTimer is 0 without grace period (handled immediately) or if timer hasn't started
+        // Don't close via periodic check if meetTimer is 0 (handled immediately) or if timer hasn't started
         return false;
       default:
         return false;
