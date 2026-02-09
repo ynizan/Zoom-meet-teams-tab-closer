@@ -9,52 +9,52 @@ body {
 }
 
 .container {
-    padding: 20px;
+    padding: 12px 16px;
 }
 
 .header {
     display: flex;
     align-items: center;
-    margin-bottom: 25px;
-    padding-bottom: 15px;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .icon {
-    width: 32px;
-    height: 32px;
-    margin-right: 12px;
+    width: 24px;
+    height: 24px;
+    margin-right: 10px;
     border-radius: 6px;
 }
 
 h1 {
     margin: 0;
-    font-size: 18px;
+    font-size: 16px;
     font-weight: 600;
     color: white;
 }
 
 .stats {
-    margin-bottom: 25px;
+    margin-bottom: 12px;
 }
 
 .counter-section {
     text-align: center;
     background: rgba(255, 255, 255, 0.1);
-    border-radius: 12px;
-    padding: 20px;
+    border-radius: 10px;
+    padding: 10px;
     backdrop-filter: blur(10px);
 }
 
 .counter-label {
-    font-size: 14px;
+    font-size: 12px;
     opacity: 0.9;
-    margin-bottom: 8px;
+    margin-bottom: 4px;
     font-weight: 500;
 }
 
 .counter-value {
-    font-size: 32px;
+    font-size: 24px;
     font-weight: bold;
     color: #FFE066;
     text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
@@ -92,7 +92,7 @@ h1 {
 }
 
 .actions {
-    margin-bottom: 20px;
+    margin-bottom: 10px;
     text-align: center;
 }
 
@@ -100,7 +100,7 @@ h1 {
     background: rgba(255, 255, 255, 0.15);
     border: 1px solid rgba(255, 255, 255, 0.3);
     color: white;
-    padding: 10px 20px;
+    padding: 6px 16px;
     border-radius: 25px;
     cursor: pointer;
     font-size: 13px;
@@ -123,9 +123,9 @@ h1 {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 12px;
+    font-size: 11px;
     opacity: 0.8;
-    padding-top: 10px;
+    padding-top: 6px;
     border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
@@ -150,15 +150,15 @@ h1 {
 
 /* Configuration Section */
 .config-section {
-    margin-bottom: 20px;
+    margin-bottom: 12px;
     background: rgba(255, 255, 255, 0.08);
-    border-radius: 12px;
-    padding: 16px;
+    border-radius: 10px;
+    padding: 10px 12px;
 }
 
 .config-section h2 {
-    margin: 0 0 16px 0;
-    font-size: 16px;
+    margin: 0 0 8px 0;
+    font-size: 13px;
     font-weight: 600;
     color: #FFE066;
     text-align: center;
@@ -168,18 +168,18 @@ h1 {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 12px;
-    padding: 8px 0;
+    margin-bottom: 4px;
+    padding: 4px 0;
 }
 
 .config-item:last-of-type {
-    margin-bottom: 16px;
+    margin-bottom: 8px;
 }
 
 .config-item label {
     display: flex;
     align-items: center;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 500;
 }
 
@@ -198,7 +198,7 @@ h1 {
 
 .timer-input input {
     width: 60px;
-    padding: 6px 8px;
+    padding: 4px 6px;
     border: 1px solid rgba(255, 255, 255, 0.3);
     border-radius: 6px;
     background: rgba(255, 255, 255, 0.1);
@@ -219,8 +219,8 @@ h1 {
 }
 
 .config-note {
-    margin-bottom: 16px;
-    padding: 10px;
+    margin-bottom: 8px;
+    padding: 6px 8px;
     background: rgba(255, 255, 255, 0.05);
     border-radius: 8px;
     border-left: 3px solid #FFE066;
@@ -228,7 +228,7 @@ h1 {
 
 .config-note p {
     margin: 0;
-    font-size: 11px;
+    font-size: 10px;
     line-height: 1.4;
     opacity: 0.9;
 }
@@ -238,7 +238,7 @@ h1 {
     background: rgba(76, 175, 80, 0.2);
     border: 1px solid rgba(76, 175, 80, 0.5);
     color: white;
-    padding: 10px 20px;
+    padding: 6px 16px;
     border-radius: 8px;
     cursor: pointer;
     font-size: 13px;
@@ -264,15 +264,15 @@ h1 {
 
 /* Features Section */
 .features-section {
-    margin-bottom: 20px;
+    margin-bottom: 12px;
     background: rgba(255, 255, 255, 0.08);
-    border-radius: 12px;
-    padding: 16px;
+    border-radius: 10px;
+    padding: 10px 12px;
 }
 
 .features-section h2 {
-    margin: 0 0 16px 0;
-    font-size: 16px;
+    margin: 0 0 8px 0;
+    font-size: 13px;
     font-weight: 600;
     color: #FFE066;
     text-align: center;
@@ -282,7 +282,7 @@ h1 {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 8px 0;
+    padding: 2px 0;
 }
 
 .toggle-item label:first-child {
@@ -293,7 +293,7 @@ h1 {
 }
 
 .toggle-label {
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 500;
 }
 
