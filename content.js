@@ -22,14 +22,38 @@ function shouldAutoAdmit(name) {
   return false;
 }
 
+// Check if Fathom auto-admit is enabled
+let fathomAutoAdmitEnabled = true;
+
+async function checkFathomAutoAdmitEnabled() {
+  try {
+    const result = await chrome.storage.local.get(['fathomAutoAdmit']);
+    fathomAutoAdmitEnabled = result.fathomAutoAdmit !== false;
+  } catch (error) {
+    fathomAutoAdmitEnabled = true;
+  }
+}
+
+// Listen for storage changes to react immediately to toggle
+chrome.storage.onChanged.addListener((changes) => {
+  if (changes.fathomAutoAdmit) {
+    fathomAutoAdmitEnabled = changes.fathomAutoAdmit.newValue !== false;
+    console.log('[AutoAdmit] Fathom auto-admit changed to:', fathomAutoAdmitEnabled);
+  }
+});
+
 // Google Meet auto-admit functionality
 function setupGoogleMeetAutoAdmit() {
   if (!window.location.href.includes('meet.google.com')) return;
 
   console.log('[AutoAdmit] Setting up Google Meet auto-admit observer');
 
+  // Load initial setting
+  checkFathomAutoAdmitEnabled();
+
   // Observer to watch for DOM changes (waiting room notifications)
   const observer = new MutationObserver((mutations) => {
+    if (!fathomAutoAdmitEnabled) return;
     checkForWaitingNotification();
     checkForWaitingParticipants();
   });
@@ -43,6 +67,7 @@ function setupGoogleMeetAutoAdmit() {
   // Also check periodically in case we miss mutations
   let checkCount = 0;
   setInterval(() => {
+    if (!fathomAutoAdmitEnabled) return;
     checkCount++;
     if (checkCount % 5 === 1) { // Log every 10 seconds (5 * 2s interval)
       console.log(`[AutoAdmit] Periodic check #${checkCount}`);

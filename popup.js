@@ -11,6 +11,9 @@ class PopupController {
     this.teamsTimerInput = document.getElementById('teamsTimer');
     this.meetTimerInput = document.getElementById('meetTimer');
 
+    // Feature toggles
+    this.fathomAutoAdmitToggle = document.getElementById('fathomAutoAdmit');
+
     this.init();
   }
 
@@ -21,9 +24,13 @@ class PopupController {
     // Load current configuration
     await this.loadConfiguration();
 
+    // Load feature toggles
+    await this.loadFeatureToggles();
+
     // Set up event listeners
     this.resetButton.addEventListener('click', () => this.resetCounter());
     this.saveConfigButton.addEventListener('click', () => this.saveConfiguration());
+    this.fathomAutoAdmitToggle.addEventListener('change', () => this.saveFathomAutoAdmit());
 
     // Update counter every few seconds while popup is open
     this.intervalId = setInterval(() => this.updateCounter(), 2000);
@@ -172,6 +179,25 @@ class PopupController {
     this.saveConfigButton.textContent = 'Error!';
     this.saveConfigButton.style.background = 'rgba(244, 67, 54, 0.3)';
     this.saveConfigButton.style.borderColor = 'rgba(244, 67, 54, 0.7)';
+  }
+
+  async loadFeatureToggles() {
+    try {
+      const result = await chrome.storage.local.get(['fathomAutoAdmit']);
+      this.fathomAutoAdmitToggle.checked = result.fathomAutoAdmit !== false;
+    } catch (error) {
+      console.error('Popup: Error loading feature toggles:', error);
+      this.fathomAutoAdmitToggle.checked = true;
+    }
+  }
+
+  async saveFathomAutoAdmit() {
+    try {
+      await chrome.storage.local.set({ fathomAutoAdmit: this.fathomAutoAdmitToggle.checked });
+      console.log('Popup: Fathom auto-admit set to:', this.fathomAutoAdmitToggle.checked);
+    } catch (error) {
+      console.error('Popup: Error saving Fathom auto-admit:', error);
+    }
   }
 }
 
