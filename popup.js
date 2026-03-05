@@ -13,6 +13,7 @@ class PopupController {
 
     // Feature toggles
     this.fathomAutoAdmitToggle = document.getElementById('fathomAutoAdmit');
+    this.shaulAutoAdmitToggle = document.getElementById('shaulAutoAdmit');
 
     this.init();
   }
@@ -30,7 +31,8 @@ class PopupController {
     // Set up event listeners
     this.resetButton.addEventListener('click', () => this.resetCounter());
     this.saveConfigButton.addEventListener('click', () => this.saveConfiguration());
-    this.fathomAutoAdmitToggle.addEventListener('change', () => this.saveFathomAutoAdmit());
+    this.fathomAutoAdmitToggle.addEventListener('change', () => this.saveAutoAdmitToggle('fathomAutoAdmit', this.fathomAutoAdmitToggle));
+    this.shaulAutoAdmitToggle.addEventListener('change', () => this.saveAutoAdmitToggle('shaulAutoAdmit', this.shaulAutoAdmitToggle));
 
     // Update counter every few seconds while popup is open
     this.intervalId = setInterval(() => this.updateCounter(), 2000);
@@ -183,20 +185,22 @@ class PopupController {
 
   async loadFeatureToggles() {
     try {
-      const result = await chrome.storage.local.get(['fathomAutoAdmit']);
+      const result = await chrome.storage.local.get(['fathomAutoAdmit', 'shaulAutoAdmit']);
       this.fathomAutoAdmitToggle.checked = result.fathomAutoAdmit !== false;
+      this.shaulAutoAdmitToggle.checked = result.shaulAutoAdmit !== false;
     } catch (error) {
       console.error('Popup: Error loading feature toggles:', error);
       this.fathomAutoAdmitToggle.checked = true;
+      this.shaulAutoAdmitToggle.checked = true;
     }
   }
 
-  async saveFathomAutoAdmit() {
+  async saveAutoAdmitToggle(key, toggleElement) {
     try {
-      await chrome.storage.local.set({ fathomAutoAdmit: this.fathomAutoAdmitToggle.checked });
-      console.log('Popup: Fathom auto-admit set to:', this.fathomAutoAdmitToggle.checked);
+      await chrome.storage.local.set({ [key]: toggleElement.checked });
+      console.log(`Popup: ${key} set to:`, toggleElement.checked);
     } catch (error) {
-      console.error('Popup: Error saving Fathom auto-admit:', error);
+      console.error(`Popup: Error saving ${key}:`, error);
     }
   }
 }

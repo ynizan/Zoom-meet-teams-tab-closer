@@ -282,7 +282,11 @@ h1 {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 2px 0;
+    padding: 4px 0;
+}
+
+.toggle-item + .toggle-item {
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .toggle-item label:first-child {

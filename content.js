@@ -2,43 +2,55 @@
 console.log('Content script loaded on:', window.location.href);
 
 // Auto-admit configuration
-const AUTO_ADMIT_PATTERNS = [
-  { mustContain: ['yaniv', 'fathom'] }  // Must contain BOTH "yaniv" AND "fathom"
+const AUTO_ADMIT_CONFIGS = [
+  { key: 'fathomAutoAdmit', patterns: [{ mustContain: ['yaniv', 'fathom'] }] },
+  { key: 'shaulAutoAdmit', patterns: [{ mustContain: ['shaul'] }] }
 ];
 
-// Check if a name matches any auto-admit pattern
+// Track enabled state per config
+let autoAdmitEnabled = { fathomAutoAdmit: true, shaulAutoAdmit: true };
+
+// Check if a name matches any enabled auto-admit pattern
 function shouldAutoAdmit(name) {
   const nameLower = name.toLowerCase();
 
-  for (const pattern of AUTO_ADMIT_PATTERNS) {
-    if (pattern.mustContain) {
-      const allMatch = pattern.mustContain.every(term => nameLower.includes(term));
-      if (allMatch) {
-        console.log(`[AutoAdmit] Name "${name}" matches pattern:`, pattern);
-        return true;
+  for (const config of AUTO_ADMIT_CONFIGS) {
+    if (!autoAdmitEnabled[config.key]) continue;
+    for (const pattern of config.patterns) {
+      if (pattern.mustContain) {
+        const allMatch = pattern.mustContain.every(term => nameLower.includes(term));
+        if (allMatch) {
+          console.log(`[AutoAdmit] Name "${name}" matches pattern (${config.key}):`, pattern);
+          return true;
+        }
       }
     }
   }
   return false;
 }
 
-// Check if Fathom auto-admit is enabled
-let fathomAutoAdmitEnabled = true;
-
-async function checkFathomAutoAdmitEnabled() {
+// Load auto-admit enabled states
+async function loadAutoAdmitSettings() {
   try {
-    const result = await chrome.storage.local.get(['fathomAutoAdmit']);
-    fathomAutoAdmitEnabled = result.fathomAutoAdmit !== false;
+    const keys = AUTO_ADMIT_CONFIGS.map(c => c.key);
+    const result = await chrome.storage.local.get(keys);
+    for (const config of AUTO_ADMIT_CONFIGS) {
+      autoAdmitEnabled[config.key] = result[config.key] !== false;
+    }
   } catch (error) {
-    fathomAutoAdmitEnabled = true;
+    for (const config of AUTO_ADMIT_CONFIGS) {
+      autoAdmitEnabled[config.key] = true;
+    }
   }
 }
 
-// Listen for storage changes to react immediately to toggle
+// Listen for storage changes to react immediately to toggles
 chrome.storage.onChanged.addListener((changes) => {
-  if (changes.fathomAutoAdmit) {
-    fathomAutoAdmitEnabled = changes.fathomAutoAdmit.newValue !== false;
-    console.log('[AutoAdmit] Fathom auto-admit changed to:', fathomAutoAdmitEnabled);
+  for (const config of AUTO_ADMIT_CONFIGS) {
+    if (changes[config.key]) {
+      autoAdmitEnabled[config.key] = changes[config.key].newValue !== false;
+      console.log(`[AutoAdmit] ${config.key} changed to:`, autoAdmitEnabled[config.key]);
+    }
   }
 });
 
@@ -48,12 +60,17 @@ function setupGoogleMeetAutoAdmit() {
 
   console.log('[AutoAdmit] Setting up Google Meet auto-admit observer');
 
-  // Load initial setting
-  checkFathomAutoAdmitEnabled();
+  // Load initial settings
+  loadAutoAdmitSettings();
+
+  // Check if any auto-admit is enabled
+  function isAnyAutoAdmitEnabled() {
+    return Object.values(autoAdmitEnabled).some(v => v);
+  }
 
   // Observer to watch for DOM changes (waiting room notifications)
   const observer = new MutationObserver((mutations) => {
-    if (!fathomAutoAdmitEnabled) return;
+    if (!isAnyAutoAdmitEnabled()) return;
     checkForWaitingNotification();
     checkForWaitingParticipants();
   });
@@ -67,7 +84,7 @@ function setupGoogleMeetAutoAdmit() {
   // Also check periodically in case we miss mutations
   let checkCount = 0;
   setInterval(() => {
-    if (!fathomAutoAdmitEnabled) return;
+    if (!isAnyAutoAdmitEnabled()) return;
     checkCount++;
     if (checkCount % 5 === 1) { // Log every 10 seconds (5 * 2s interval)
       console.log(`[AutoAdmit] Periodic check #${checkCount}`);
@@ -187,64 +204,6 @@ function checkForWaitingNotification() {
     }
   }
 
-  // Fallback: look for notification text and open participants panel
-  const notificationTexts = [
-    'wants to join',
-    'waiting to join',
-    'asking to join',
-    'wants to be admitted'
-  ];
-
-  const allText = document.body.innerText?.toLowerCase() || '';
-  const hasWaitingNotification = notificationTexts.some(text => allText.includes(text));
-
-  if (hasWaitingNotification) {
-    console.log('[AutoAdmit] Detected waiting notification text, ensuring participants panel is open');
-    openParticipantsPanel();
-  }
-}
-
-function openParticipantsPanel() {
-  // Find and click the participants button if the panel isn't already open
-
-  // Check if panel is already open (look for the panel container)
-  const panelOpen = document.querySelector('[aria-label*="articipant"]')?.closest('[role="complementary"]') ||
-                    document.querySelector('[data-panel-id="2"]');  // Participants panel ID
-
-  if (panelOpen && panelOpen.offsetParent !== null) {
-    // Panel is already visible
-    return;
-  }
-
-  // Try multiple methods to find the participants button
-  const participantsButton =
-    // Method 1: Button with "participants" aria-label
-    document.querySelector('button[aria-label*="articipant"]') ||
-    document.querySelector('button[aria-label*="people"]') ||
-    // Method 2: Button with people icon (usually has specific data attributes)
-    document.querySelector('[data-panel-id="2"]') ||
-    // Method 3: Look for button with participant count badge
-    findParticipantsButtonByIcon();
-
-  if (participantsButton) {
-    console.log('[AutoAdmit] Opening participants panel');
-    participantsButton.click();
-  }
-}
-
-function findParticipantsButtonByIcon() {
-  // Find button that likely opens participants panel by looking at its contents
-  const buttons = document.querySelectorAll('button');
-  for (const btn of buttons) {
-    const ariaLabel = btn.getAttribute('aria-label')?.toLowerCase() || '';
-    const tooltip = btn.getAttribute('data-tooltip')?.toLowerCase() || '';
-
-    if (ariaLabel.includes('participant') || ariaLabel.includes('people') ||
-        tooltip.includes('participant') || tooltip.includes('people')) {
-      return btn;
-    }
-  }
-  return null;
 }
 
 function checkForWaitingParticipants() {
