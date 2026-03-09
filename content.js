@@ -3,7 +3,7 @@ console.log('Content script loaded on:', window.location.href);
 
 // Auto-admit configuration
 const AUTO_ADMIT_CONFIGS = [
-  { key: 'fathomAutoAdmit', patterns: [{ mustContain: ['yaniv', 'fathom'] }] },
+  { key: 'fathomAutoAdmit', patterns: [{ mustContain: ['fathom'] }] },
   { key: 'shaulAutoAdmit', patterns: [{ mustContain: ['shaul'] }] }
 ];
 
@@ -66,6 +66,30 @@ chrome.storage.onChanged.addListener((changes) => {
   }
 });
 
+// Try to open the participants panel so waiting participants become visible in the DOM
+let panelOpened = false;
+function ensureParticipantsPanelOpen() {
+  if (panelOpened) return;
+
+  // Look for the people/participants button in the toolbar
+  const buttons = document.querySelectorAll('button[aria-label]');
+  for (const btn of buttons) {
+    const label = (btn.getAttribute('aria-label') || '').toLowerCase();
+    if (label.includes('people') || label.includes('participant') || label.includes('show everyone')) {
+      // Check if panel is already open (button is toggled/pressed)
+      const isPressed = btn.getAttribute('aria-pressed') === 'true';
+      if (isPressed) {
+        panelOpened = true;
+        return;
+      }
+      console.log(`[AutoAdmit] Opening participants panel via button: "${btn.getAttribute('aria-label')}"`);
+      btn.click();
+      panelOpened = true;
+      return;
+    }
+  }
+}
+
 // Google Meet auto-admit functionality
 function setupGoogleMeetAutoAdmit() {
   if (!window.location.href.includes('meet.google.com')) return;
@@ -77,6 +101,16 @@ function setupGoogleMeetAutoAdmit() {
   function isAnyAutoAdmitEnabled() {
     return Object.values(autoAdmitEnabled).some(v => v);
   }
+
+  // Periodically ensure the panel is open so we can see waiting participants
+  let panelOpenAttempts = 0;
+  setInterval(() => {
+    if (!isAnyAutoAdmitEnabled()) return;
+    if (panelOpenAttempts < 20) {
+      ensureParticipantsPanelOpen();
+      panelOpenAttempts++;
+    }
+  }, 5000);
 
   let checkCount = 0;
   setInterval(() => {
