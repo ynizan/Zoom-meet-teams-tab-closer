@@ -3,7 +3,7 @@ console.log('Content script loaded on:', window.location.href);
 
 // Auto-admit configuration
 const AUTO_ADMIT_CONFIGS = [
-  { key: 'fathomAutoAdmit', patterns: [{ mustContain: ['fathom'] }] },
+  { key: 'fathomAutoAdmit', patterns: [{ mustContain: ['yaniv', 'fathom'] }] },
   { key: 'shaulAutoAdmit', patterns: [{ mustContain: ['shaul'] }] }
 ];
 
@@ -20,6 +20,10 @@ function isOnCooldown() {
 
 function recordClick() {
   lastClickTime = Date.now();
+}
+
+function isAnyAutoAdmitEnabled() {
+  return Object.values(autoAdmitEnabled).some(v => v);
 }
 
 // Check if a name matches any enabled auto-admit pattern
@@ -66,65 +70,109 @@ chrome.storage.onChanged.addListener((changes) => {
   }
 });
 
-// Try to open the participants panel so waiting participants become visible in the DOM
-let panelOpened = false;
-function ensureParticipantsPanelOpen() {
-  if (panelOpened) return;
-
-  // Look for the people/participants button in the toolbar
-  const buttons = document.querySelectorAll('button[aria-label]');
-  for (const btn of buttons) {
-    const label = (btn.getAttribute('aria-label') || '').toLowerCase();
-    if (label.includes('people') || label.includes('participant') || label.includes('show everyone')) {
-      // Check if panel is already open (button is toggled/pressed)
-      const isPressed = btn.getAttribute('aria-pressed') === 'true';
-      if (isPressed) {
-        panelOpened = true;
-        return;
-      }
-      console.log(`[AutoAdmit] Opening participants panel via button: "${btn.getAttribute('aria-label')}"`);
-      btn.click();
-      panelOpened = true;
-      return;
-    }
-  }
-}
-
 // Google Meet auto-admit functionality
 function setupGoogleMeetAutoAdmit() {
   if (!window.location.href.includes('meet.google.com')) return;
 
-  console.log('[AutoAdmit] Setting up Google Meet auto-admit (polling only, no MutationObserver)');
+  console.log('[AutoAdmit] Setting up Google Meet auto-admit');
 
   loadAutoAdmitSettings();
 
-  function isAnyAutoAdmitEnabled() {
-    return Object.values(autoAdmitEnabled).some(v => v);
-  }
-
-  // Periodically ensure the panel is open so we can see waiting participants
-  let panelOpenAttempts = 0;
-  setInterval(() => {
+  // Observer to watch for DOM changes (waiting room notifications)
+  const observer = new MutationObserver(() => {
     if (!isAnyAutoAdmitEnabled()) return;
-    if (panelOpenAttempts < 20) {
-      ensureParticipantsPanelOpen();
-      panelOpenAttempts++;
-    }
-  }, 5000);
+    if (isOnCooldown()) return;
+    checkForWaitingNotification();
+    checkForWaitingParticipants();
+  });
 
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true
+  });
+
+  // Also check periodically in case we miss mutations
   let checkCount = 0;
   setInterval(() => {
     if (!isAnyAutoAdmitEnabled()) return;
     if (isOnCooldown()) return;
-
     checkCount++;
-    if (checkCount % 3 === 1) {
+    if (checkCount % 5 === 1) {
       console.log(`[AutoAdmit] Periodic check #${checkCount}`);
     }
-
-    // Only try to admit individual participants by name — don't click "Admit X guest" button
+    checkForWaitingNotification();
     checkForWaitingParticipants();
-  }, 3000);
+  }, 2000);
+}
+
+// Click "Admit X guest" button to reveal waiting participants, and open participants panel
+function checkForWaitingNotification() {
+  const allButtons = document.querySelectorAll('button');
+
+  for (const button of allButtons) {
+    const buttonText = button.textContent?.trim()?.toLowerCase() || '';
+    const ariaLabel = (button.getAttribute('aria-label') || '').toLowerCase();
+
+    // Match "Admit 1 guest", "Admit 2 guests", etc.
+    if ((buttonText.includes('admit') && buttonText.includes('guest')) ||
+        (ariaLabel.includes('admit') && ariaLabel.includes('guest'))) {
+      console.log('[AutoAdmit] Found "Admit guest" button, clicking to reveal waiting participants');
+      button.click();
+      recordClick();
+      return;
+    }
+  }
+
+  // Fallback: look for notification text and open participants panel
+  const notificationTexts = [
+    'wants to join',
+    'waiting to join',
+    'asking to join',
+    'wants to be admitted'
+  ];
+
+  const allText = document.body.innerText?.toLowerCase() || '';
+  const hasWaitingNotification = notificationTexts.some(text => allText.includes(text));
+
+  if (hasWaitingNotification) {
+    console.log('[AutoAdmit] Detected waiting notification text, ensuring participants panel is open');
+    openParticipantsPanel();
+  }
+}
+
+// Open the participants panel (and leave it open)
+function openParticipantsPanel() {
+  // Check if panel is already open
+  const panelOpen = document.querySelector('[aria-label*="articipant"]')?.closest('[role="complementary"]') ||
+                    document.querySelector('[data-panel-id="2"]');
+
+  if (panelOpen && panelOpen.offsetParent !== null) return;
+
+  const participantsButton =
+    document.querySelector('button[aria-label*="articipant"]') ||
+    document.querySelector('button[aria-label*="people"]') ||
+    document.querySelector('[data-panel-id="2"]') ||
+    findParticipantsButtonByIcon();
+
+  if (participantsButton) {
+    console.log('[AutoAdmit] Opening participants panel');
+    participantsButton.click();
+  }
+}
+
+function findParticipantsButtonByIcon() {
+  const buttons = document.querySelectorAll('button');
+  for (const btn of buttons) {
+    const ariaLabel = btn.getAttribute('aria-label')?.toLowerCase() || '';
+    const tooltip = btn.getAttribute('data-tooltip')?.toLowerCase() || '';
+
+    if (ariaLabel.includes('participant') || ariaLabel.includes('people') ||
+        tooltip.includes('participant') || tooltip.includes('people') ||
+        ariaLabel.includes('show everyone')) {
+      return btn;
+    }
+  }
+  return null;
 }
 
 // Scan for individual "Admit" buttons next to participant names and click only for matches
@@ -136,10 +184,8 @@ function checkForWaitingParticipants() {
 
     // Skip "Admit all" and "Admit X guest(s)" buttons — we only want per-participant Admit
     if (buttonText.includes('admit all') || buttonText.includes('guest')) continue;
-
     if (!buttonText.includes('admit')) continue;
 
-    // This is a per-participant "Admit" button — find the participant name nearby
     const container = button.closest('[data-participant-id]') ||
                       button.closest('[role="listitem"]') ||
                       button.parentElement?.parentElement?.parentElement;
