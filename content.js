@@ -71,6 +71,8 @@ chrome.storage.onChanged.addListener((changes) => {
 });
 
 // Google Meet auto-admit functionality
+let panelOpened = false;
+
 function setupGoogleMeetAutoAdmit() {
   if (!window.location.href.includes('meet.google.com')) return;
 
@@ -90,6 +92,17 @@ function setupGoogleMeetAutoAdmit() {
     childList: true,
     subtree: true
   });
+
+  // Proactively open the participants panel so admit buttons are visible
+  // Keep trying until successful (Google Meet takes time to render toolbar)
+  const panelInterval = setInterval(() => {
+    if (!isAnyAutoAdmitEnabled()) return;
+    if (panelOpened) {
+      clearInterval(panelInterval);
+      return;
+    }
+    openParticipantsPanel();
+  }, 3000);
 
   // Also check periodically in case we miss mutations
   let checkCount = 0;
@@ -142,37 +155,34 @@ function checkForWaitingNotification() {
 
 // Open the participants panel (and leave it open)
 function openParticipantsPanel() {
-  // Check if panel is already open
-  const panelOpen = document.querySelector('[aria-label*="articipant"]')?.closest('[role="complementary"]') ||
-                    document.querySelector('[data-panel-id="2"]');
+  if (panelOpened) return;
 
-  if (panelOpen && panelOpen.offsetParent !== null) return;
-
-  const participantsButton =
-    document.querySelector('button[aria-label*="articipant"]') ||
-    document.querySelector('button[aria-label*="people"]') ||
-    document.querySelector('[data-panel-id="2"]') ||
-    findParticipantsButtonByIcon();
-
-  if (participantsButton) {
-    console.log('[AutoAdmit] Opening participants panel');
-    participantsButton.click();
+  // Log all toolbar buttons on first few attempts to help debug
+  const allButtons = document.querySelectorAll('button[aria-label]');
+  const buttonLabels = Array.from(allButtons).map(b => b.getAttribute('aria-label')).filter(Boolean);
+  if (buttonLabels.length > 0) {
+    console.log('[AutoAdmit] Available buttons:', buttonLabels.join(', '));
   }
-}
 
-function findParticipantsButtonByIcon() {
-  const buttons = document.querySelectorAll('button');
-  for (const btn of buttons) {
-    const ariaLabel = btn.getAttribute('aria-label')?.toLowerCase() || '';
-    const tooltip = btn.getAttribute('data-tooltip')?.toLowerCase() || '';
+  // Try multiple selector strategies
+  for (const btn of allButtons) {
+    const label = (btn.getAttribute('aria-label') || '').toLowerCase();
+    const tooltip = (btn.getAttribute('data-tooltip') || '').toLowerCase();
+    const combined = label + ' ' + tooltip;
 
-    if (ariaLabel.includes('participant') || ariaLabel.includes('people') ||
-        tooltip.includes('participant') || tooltip.includes('people') ||
-        ariaLabel.includes('show everyone')) {
-      return btn;
+    if (combined.includes('participant') ||
+        combined.includes('people') ||
+        combined.includes('show everyone') ||
+        combined.includes('everyone') ||
+        combined.includes('person')) {
+      console.log(`[AutoAdmit] Opening participants panel via: "${btn.getAttribute('aria-label')}"`);
+      btn.click();
+      panelOpened = true;
+      return;
     }
   }
-  return null;
+
+  console.log('[AutoAdmit] Could not find participants button yet');
 }
 
 // Scan for individual "Admit" buttons next to participant names and click only for matches
