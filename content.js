@@ -157,15 +157,30 @@ function checkForWaitingNotification() {
 function openParticipantsPanel() {
   if (panelOpened) return;
 
-  // Log all toolbar buttons on first few attempts to help debug
-  const allButtons = document.querySelectorAll('button[aria-label]');
-  const buttonLabels = Array.from(allButtons).map(b => b.getAttribute('aria-label')).filter(Boolean);
-  if (buttonLabels.length > 0) {
-    console.log('[AutoAdmit] Available buttons:', buttonLabels.join(', '));
+  // Strategy 1: The participants badge is a div, not a button
+  // It's div.ABWBsf[jsname="nav9Xe"] containing a clickable div.fdZ55
+  const participantsBadge = document.querySelector('div[jsname="nav9Xe"] div.fdZ55') ||
+                            document.querySelector('div.ABWBsf div.fdZ55');
+  if (participantsBadge) {
+    console.log('[AutoAdmit] Opening participants panel via badge div');
+    participantsBadge.click();
+    panelOpened = true;
+    return;
   }
 
-  // Try multiple selector strategies
-  for (const btn of allButtons) {
+  // Strategy 2: Look for the outer container and click it
+  const outerBadge = document.querySelector('div[jsname="nav9Xe"]') ||
+                     document.querySelector('div.ABWBsf');
+  if (outerBadge) {
+    console.log('[AutoAdmit] Opening participants panel via outer badge');
+    outerBadge.click();
+    panelOpened = true;
+    return;
+  }
+
+  // Strategy 3: Fallback to button-based selectors (older Meet UI)
+  const buttons = document.querySelectorAll('button[aria-label]');
+  for (const btn of buttons) {
     const label = (btn.getAttribute('aria-label') || '').toLowerCase();
     const tooltip = (btn.getAttribute('data-tooltip') || '').toLowerCase();
     const combined = label + ' ' + tooltip;
@@ -173,16 +188,15 @@ function openParticipantsPanel() {
     if (combined.includes('participant') ||
         combined.includes('people') ||
         combined.includes('show everyone') ||
-        combined.includes('everyone') ||
-        combined.includes('person')) {
-      console.log(`[AutoAdmit] Opening participants panel via: "${btn.getAttribute('aria-label')}"`);
+        combined.includes('everyone')) {
+      console.log(`[AutoAdmit] Opening participants panel via button: "${btn.getAttribute('aria-label')}"`);
       btn.click();
       panelOpened = true;
       return;
     }
   }
 
-  console.log('[AutoAdmit] Could not find participants button yet');
+  console.log('[AutoAdmit] Could not find participants panel element yet');
 }
 
 // Scan for individual "Admit" buttons next to participant names and click only for matches
